@@ -28,19 +28,28 @@ BATCH_SIZE = 64
 
 def main():
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
     cudnn.benchmark = True
 
     # initialize and load the model
     model = DenseNet121(N_CLASSES).cuda()
     model = torch.nn.DataParallel(model).cuda()
+    
 
     if os.path.isfile(CKPT_PATH):
         print("=> loading checkpoint")
         checkpoint = torch.load(CKPT_PATH)
-        model.load_state_dict(checkpoint['state_dict'])
+        if 'state_dict' in checkpoint:
+            # if the checkpoint is saved from DataParallel module
+            model.load_state_dict(checkpoint['state_dict'])
+        else:
+            # if the checkpoint is saved from a single GPU model
+            model.module.load_state_dict(checkpoint)
         print("=> loaded checkpoint")
     else:
         print("=> no checkpoint found")
+
+    model = torch.nn.DataParallel(model).cuda()
 
     normalize = transforms.Normalize([0.485, 0.456, 0.406],
                                      [0.229, 0.224, 0.225])
